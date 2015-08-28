@@ -13,8 +13,9 @@ import multipart
 from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
 import webapp2
+import token
 
-TOKEN = '137044187:AAENJdA2s4oZ7KTen3IwTTjEPIamIhWLJHc'
+TOKEN = token.TOKEN
 
 BASE_URL = 'https://api.telegram.org/bot' + TOKEN + '/'
 HS_API_SEARCH = 'https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/'
