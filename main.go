@@ -221,7 +221,7 @@ func extractParams(parameters []string) (cardIndex int, isGold bool) {
 		if num, err := strconv.Atoi(v); err == nil {
 			cardIndex = num
 		}
-		if v == "gold" {
+		if strings.TrimSpace(strings.ToLower(v)) == "gold" {
 			isGold = true
 		}
 	}
