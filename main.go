@@ -100,6 +100,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 						_, err := reply(r, msg.Chat.Id, msg.MessageId, "must provide cardname", "")
 						checkErr(w, err)
 						c.Infof("no cardname provided")
+						return
 					}
 
 					if len(parameters) > 2 {
@@ -158,7 +159,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 								c.Infof("replied card ")
 							}
 						} else if len(cards) == 0 {
-							_, err := reply(r, msg.Chat.Id, msg.MessageId, "couldn't found that card sorry", "")
+							_, err := reply(r, msg.Chat.Id, msg.MessageId, "Sorry, I couldn't find that card", "")
 							checkErr(w, err)
 							c.Infof("no cardname found")
 						}
@@ -177,21 +178,13 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 						checkErr(w, err)
 						c.Infof("replied first image with no params")
 					} else {
-						_, err := reply(r, msg.Chat.Id, msg.MessageId, "couldn't found that card sorry", "")
+						_, err := reply(r, msg.Chat.Id, msg.MessageId, "Sorry, I couldn't find that card", "")
 						checkErr(w, err)
 						c.Infof("no cardname found")
 						return
 					}
 				}
 
-			} else if strings.HasPrefix(msg.Text, "/hs") && len(strings.TrimSpace(msg.Text)) <= 3 {
-				_, err := reply(r, msg.Chat.Id, msg.MessageId, "must provide card name", "")
-				checkErr(w, err)
-				c.Infof("please provide cardname")
-			} else {
-				_, err := reply(r, msg.Chat.Id, msg.MessageId, "What command ?", "")
-				checkErr(w, err)
-				c.Infof("What Command?")
 			}
 		} else if msg.Text == "who are you" {
 			_, err := reply(r, msg.Chat.Id, msg.MessageId,
@@ -199,9 +192,6 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			checkErr(w, err)
 			c.Infof("replied who am I")
 		}
-	} else {
-		reply(r, msg.Chat.Id, msg.MessageId, "What?", "")
-		c.Infof("What?")
 	}
 
 	//Saving message cache to datastore
