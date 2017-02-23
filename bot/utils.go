@@ -40,7 +40,7 @@ func createMultiCardError(cards []hsapi.Card, cardname string, command string) s
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("I found a lot of cards with the name `%s`: \n", cardname))
 	for k, v := range cards {
-		buffer.WriteString(fmt.Sprintf("%d- %s [type:%s, cost:%d]\n", k, v, v.Type, v.Cost))
+		buffer.WriteString(fmt.Sprintf("%d- %s [type:%s, cost:%d]\n", k, v.Name, v.Type, v.Cost))
 	}
 	buffer.WriteString(fmt.Sprintf("Select which one is yours with `%s %s[position]` or \n", command, cardname))
 	buffer.WriteString("redo the query with a more specific name... ")

@@ -108,7 +108,7 @@ func (self *Bot) HandleMessage(update tgbotapi.Update) {
 			card = cards[0]
 		}
 
-		if params[PARAM_GOLD].(bool) {
+		if isGold, _ := params[PARAM_GOLD].(bool); isGold {
 			msg.Text = card.ImgGold
 		} else {
 			msg.Text = card.Img
