@@ -100,6 +100,13 @@ func (self *Bot) HandleMessage(update tgbotapi.Update) {
 	}*/
 
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+	if strings.TrimSpace(config.Name) == "" {
+		msg.Text = "what?"
+		msg.ReplyToMessageID = update.Message.MessageID
+		self.Bot.Send(msg)
+		return
+	}
+
 	if cards, err := self.Api.Search(config); err != nil || len(cards) != 0 {
 		if _, ok := params[PARAM_INDEX]; !ok && len(cards) > 1 {
 			msg.Text = createMultiCardError(cards, config.Name, params[PARAM_COMMAND].(string))
