@@ -51,9 +51,11 @@ func (self *Bot) HandleMessage(update tgbotapi.Update) {
 	switch true {
 	case strings.HasPrefix(update.Message.Text, COMMAND_START):
 		self.toggleBot(true, update)
+		return
 		break
 	case strings.HasPrefix(update.Message.Text, COMMAND_STOP):
 		self.toggleBot(false, update)
+		return
 		break
 	case strings.HasPrefix(update.Message.Text, COMMAND_NORMAL_CARD):
 		config.Name, params = parseParams(update.Message.Text, COMMAND_NORMAL_CARD)
