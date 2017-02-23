@@ -1,113 +1,90 @@
-package hsimagebot
+package main
 
 import (
-	"appengine"
-	"appengine/urlfetch"
-	botApi "github.com/Syfaro/telegram-bot-api"
-	"encoding/json"
+	"github.com/eefret/hsapi"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
+	log "github.com/sirupsen/logrus"
+	"flag"
 	"fmt"
-	"net/http"
-	"strconv"
+	"os"
 	"strings"
+	"github.com/eefret/telegram-hs-cards-bot/bot"
+	"github.com/garyburd/redigo/redis"
 )
 
 //----------------------------------------------Initialization
 const (
-	TOKEN string = "TOKEN"
-	BASE_URL      string = "https://api.telegram.org/bot" + TOKEN + "/"
-	HS_API_SEARCH string = "https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/"
-	MASHAPE_KEY   string = "tntkXJyM7EmshBgQYsXtCHHEX8Izp1uHrN1jsnTpw7tNCxEZIN"
+	MASHAPE_KEY string = "tntkXJyM7EmshBgQYsXtCHHEX8Izp1uHrN1jsnTpw7tNCxEZIN"
 )
 
+var (
+	Token           string
+	HsapiToken      string
+	RedisConnString string
+)
 
 func init() {
-	http.HandleFunc("/me", meHandler)
-	http.HandleFunc("/update", updateHandler)
-	http.HandleFunc("/set_webhook", setWebhookHandler)
-	http.HandleFunc("/webhook", webhookHandler)
+	flag.StringVar(&Token, "t", "", "Bot Token")
+	flag.StringVar(&HsapiToken, "h", "", "Hearthstone API Token")
+	flag.StringVar(&RedisConnString, "r", ":6379", "Redis connection string")
+	flag.Parse()
 }
 
-//----------------------------------------------Handlers
-func meHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	bot, err := botApi.NewBotAPIWithClient(TOKEN, urlfetch.Client(appengine.NewContext(r)))
-	user, err := bot.GetMe()
-	resp, err := json.Marshal(user)
-	checkErr(w, err)
-	fmt.Fprint(w, string(resp))
-}
-
-func updateHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	bot, err := botApi.NewBotAPIWithClient(TOKEN, urlfetch.Client(appengine.NewContext(r)))
-	num, err := strconv.Atoi(r.URL.Query().Get("offset"))
-	updates, err := bot.GetUpdates(botApi.NewUpdate(num))
-	resp, err := json.Marshal(updates)
-	checkErr(w, err)
-	fmt.Fprint(w, string(resp))
-}
-
-func setWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	bot, err := botApi.NewBotAPIWithClient(TOKEN, urlfetch.Client(appengine.NewContext(r)))
-	resp, err := bot.SetWebhook(botApi.NewWebhook(r.URL.Query().Get("url")))
-	str, err := json.Marshal(resp)
-	checkErr(w, err)
-	fmt.Fprint(w, string(str))
-}
-
-func webhookHandler(w http.ResponseWriter, r *http.Request) {
-	//Getting context
-	c := appengine.NewContext(r)
-	//decoding to json Message struct
-	decoder := json.NewDecoder(r.Body)
-	var update botApi.Update
-	err := decoder.Decode(&update)
-	if err != nil {
-		c.Errorf("%v", err)
-	}
-
-	// getting the string to respond
-	body, err := json.Marshal(update)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprint(w, string(body))
-	checkErr(w, err)
-
-	//getting msg
-	msg := update.Message
-
-	if isMessageRepeated(c, msg.MessageID, msg.Chat.ID) {
-		c.Infof("repeated message")
+func main() {
+	//Tokens
+	if len(Token) == 0 {
+		log.Panic("No token provided.. Exiting...")
 		return
 	}
-	err = insertRespondedMessage(c, msg.MessageID, msg.Chat.ID)
-	checkErr(w, err)
+	if len(HsapiToken) == 0 {
+		HsapiToken = MASHAPE_KEY;
+	}
+	//Logging setup
+	f, err := os.OpenFile("errors.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println("there was an error opening the file...")
+		return
+	}
+	defer f.Close()
+	log.SetOutput(f)
+	log.SetLevel(log.DebugLevel)
+	log.SetFormatter(&log.JSONFormatter{})
 
-	active := isActiveBot(c, msg.Chat.ID)
-	c.Infof("status is active: %v", active)
-	//Working with commands
-	if strings.HasPrefix(msg.Text, "/") {
-		//Endpoints available when active
-		if active {
-			if strings.HasPrefix(msg.Text, "/hs") { //CARDS FETCHING PARAMS
-				commandHs(w, r, msg)
-			} else if strings.HasPrefix(msg.Text, "/stop") {
-				err := insertStatus(c, msg.Chat.ID, false)
-				if err != nil {
-					c.Errorf("%v", err)
-				}
-			}
-		} else { //Available when inactive
-			if strings.HasPrefix(msg.Text, "/start") {
-				err := insertStatus(c, msg.Chat.ID, true)
-				if err != nil {
-					c.Errorf("%v", err)
-				}
-			}
+	//getting bot, redis and api
+	tgBot, err := tgbotapi.NewBotAPI(Token);
+	if checkErr(err) {
+		return
+	}
+	log.Printf("Authorised on account %s", tgBot.Self.UserName)
+	api := hsapi.NewHsAPI(HsapiToken)
+
+	u := tgbotapi.NewUpdate(1)
+	updates, err := tgBot.GetUpdatesChan(u);
+	if checkErr(err) {
+		return
+	}
+	redisConn, err := redis.Dial("tcp", RedisConnString);
+	if checkErr(err) {
+		return
+	}
+
+	hsBot := bot.NewBot(api, tgBot, redisConn)
+
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+		log.Printf("[%s] %s ", update.Message.From.UserName, update.Message.Text)
+		if strings.HasPrefix(update.Message.Text, "/") {
+			hsBot.HandleMessage(update)
 		}
 	}
 }
 
-//----------------------------------------------Methods
-
-
+func checkErr(err error) bool {
+	if err != nil {
+		log.Error(err)
+		return true
+	}
+	return false
+}
