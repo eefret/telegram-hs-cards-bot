@@ -16,6 +16,8 @@ type Bot struct {
 }
 
 const (
+	BOT_NAME = "@hscardimgbot"
+
 	//commands
 	COMMAND_NORMAL_CARD      = "/hs "
 	COMMAND_GOLD_CARD        = "/ghs "
@@ -45,6 +47,10 @@ func NewBot(api *hsapi.HsAPI, bot *tgbotapi.BotAPI, redisConn redis.Conn) *Bot {
 }
 
 func (self *Bot) HandleMessage(update tgbotapi.Update) {
+
+	if strings.Contains(update.Message.Text, BOT_NAME) {
+		update.Message.Text = strings.Replace(update.Message.Text, BOT_NAME, "", 1)
+	}
 
 	config := hsapi.NewCardSearch("")
 	var params map[string]interface{}
