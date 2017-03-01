@@ -107,7 +107,7 @@ func (self *Bot) HandleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	if cards, err := self.Api.Search(config); err != nil || len(cards) != 0 {
+	if cards, err := self.Api.Search(config); err == nil && len(cards) != 0 {
 		log.Debugf("%v", cards)
 		if _, ok := params[PARAM_INDEX]; !ok && len(cards) > 1 {
 			msg.Text = createMultiCardError(cards, config.Name, params[PARAM_COMMAND].(string))
